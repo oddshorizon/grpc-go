@@ -21,6 +21,7 @@ package grpc
 import (
 	"context"
 	"errors"
+	"google.golang.org/protobuf/types/known/anypb"
 	"io"
 	"math"
 	"strconv"
@@ -1646,12 +1647,20 @@ func prepareMsg(m interface{}, codec baseCodec, cp Compressor, comp encoding.Com
 	if preparedMsg, ok := m.(*PreparedMsg); ok {
 		return preparedMsg.hdr, preparedMsg.payload, preparedMsg.encodedData, nil
 	}
-	// The input interface is not a prepared msg.
-	// Marshal and Compress the data at this point
-	data, err = encode(codec, m)
-	if err != nil {
-		return nil, nil, nil, err
+
+	// edit by huangyuting@odds.com 2022.6.27
+	anyVo, isAnyType := m.(*anypb.Any)
+	if isAnyType {
+		data = anyVo.Value
+	} else {
+		// The input interface is not a prepared msg.
+		// Marshal and Compress the data at this point
+		data, err = encode(codec, m)
+		if err != nil {
+			return nil, nil, nil, err
+		}
 	}
+
 	compData, err := compress(data, cp, comp)
 	if err != nil {
 		return nil, nil, nil, err
